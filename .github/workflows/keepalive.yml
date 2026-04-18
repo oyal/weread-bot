@@ -1,0 +1,24 @@
+name: Keep Repo Active
+
+on:
+  schedule:
+    # 建议每月 1 号自动运行一次即可，足够刷新 60 天的倒计时
+    - cron: '0 0 1 * *'
+  workflow_dispatch: # 保留手动触发按钮，方便你随时测试
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # 授予 GitHub Actions 推送代码的权限
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create empty commit to keep repo active
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          # 生成一个空提交，不会修改你的任何实际代码文件
+          git commit --allow-empty -m "chore: keep workflows alive"
+          git push
