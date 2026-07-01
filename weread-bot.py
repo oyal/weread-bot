@@ -3561,25 +3561,55 @@ class WeReadSessionManager:
             )
             return False, 0.0
 
+    async def _request_cookie_refresh(
+        self, cookie_data: Dict[str, Any]
+    ) -> Optional[str]:
+        """发送 Cookie 刷新请求并返回响应中的 wr_skey"""
+        response, _ = await self.http_client.post_raw(
+            self.RENEW_URL,
+            headers=self.headers,
+            cookies=self.cookies,
+            json_data=cookie_data
+        )
+        return self._extract_wr_skey_from_response(response)
+
     async def _refresh_cookie(self) -> bool:
         """刷新cookie"""
         logging.info("🍪 刷新cookie...")
 
         try:
-            response, _ = await self.http_client.post_raw(
-                self.RENEW_URL,
-                headers=self.headers,
-                cookies=self.cookies,
-                json_data=self.cookie_data
-            )
-
-            new_skey = self._extract_wr_skey_from_response(response)
+            new_skey = await self._request_cookie_refresh(self.cookie_data)
 
             if not new_skey:
+                fallback_cookie_data = self.cookie_data.copy()
+                fallback_cookie_data['ql'] = not fallback_cookie_data.get(
+                    'ql', False
+                )
+                logging.warning(
+                    self._build_protocol_warning(
+                        "Cookie 刷新响应未携带 wr_skey",
+                        f"尝试切换 ql={fallback_cookie_data['ql']} 后重试",
+                    )
+                )
+                new_skey = await self._request_cookie_refresh(
+                    fallback_cookie_data
+                )
+
+            if not new_skey:
+                existing_skey = self.cookies.get('wr_skey')
+                if existing_skey:
+                    logging.warning(
+                        self._build_protocol_warning(
+                            "Cookie 刷新响应仍未携带 wr_skey",
+                            "保留当前 wr_skey 继续执行；若后续阅读失败请重新抓取 Cookie",
+                        )
+                    )
+                    return True
+
                 logging.error(
                     self._build_protocol_error(
                         "Cookie 刷新失败",
-                        "响应中未找到 wr_skey，可能是 Cookie 已失效或接口返回结构变更",
+                        "响应中未找到 wr_skey，且当前 Cookie 中没有可复用的 wr_skey",
                     )
                 )
                 return False
