@@ -307,6 +307,7 @@ A: 这可能是 `cookie_refresh_ql` 配置问题：
 3. 如果当前设置为 `true`，尝试设置为 `false`
 4. 重新运行 Action 测试
 5. 如果是多用户且仅部分账号失败，请改用配置文件，为对应账号单独设置 `curl_config.users[].cookie_refresh_ql`
+6. 新版本会在刷新响应缺少 `wr_skey` 时自动切换 `ql` 重试；如果响应仍不携带新密钥但原 Cookie 中已有 `wr_skey`，程序会保留现有密钥继续执行，并通过后续阅读请求验证是否仍有效
 
 ### Q: 如何判断是否需要调整 Hack 配置？
 
